@@ -12,10 +12,18 @@ xml.definitions 'xmlns' => 'http://schemas.xmlsoap.org/wsdl/',
     xml.tag! "schema", :targetNamespace => @namespace, :xmlns => 'http://www.w3.org/2001/XMLSchema' do
       defined = []
       @map.each do |operation, formats|
-        (formats[:in] + formats[:out]).each do |p|
-          wsdl_type xml, p, defined
-        end
+        wsdl_operation_element xml, operation, formats, defined
       end
+    end
+  end
+
+  @map.each do |operation, formats|
+    xml.message :name => "#{operation}" do
+      xml.part :name => "parameters", :element => "tns:#{operation}"
+    end
+
+    xml.message :name => formats[:response_tag] do
+      xml.part :name => "parameters", :element => "tns:#{formats[:response_tag]}"
     end
   end
 
@@ -53,16 +61,4 @@ xml.definitions 'xmlns' => 'http://schemas.xmlsoap.org/wsdl/',
     end
   end
 
-  @map.each do |operation, formats|
-    xml.message :name => "#{operation}" do
-      formats[:in].each do |p|
-        xml.part wsdl_occurence(p, false, :name => p.name, :type => p.namespaced_type)
-      end
-    end
-    xml.message :name => formats[:response_tag] do
-      formats[:out].each do |p|
-        xml.part wsdl_occurence(p, false, :name => p.name, :type => p.namespaced_type)
-      end
-    end
-  end
 end

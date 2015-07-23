@@ -13,8 +13,21 @@ xml.definitions 'xmlns' => 'http://schemas.xmlsoap.org/wsdl/',
       defined = []
       @map.each do |operation, formats|
         (formats[:in] + formats[:out]).each do |p|
-          wsdl_type xml, p, defined
+          wsdl_element xml, p, defined
         end
+      end
+    end
+  end
+
+  @map.each do |operation, formats|
+    xml.message :name => "#{operation}" do
+      formats[:in].each do |p|
+        xml.part wsdl_occurence(p, true, :name => "parameters", :element => p.namespaced_type)
+      end
+    end
+    xml.message :name => formats[:response_tag] do
+      formats[:out].each do |p|
+        xml.part wsdl_occurence(p, true, :name => "parameters", :element => p.namespaced_type)
       end
     end
   end
@@ -53,16 +66,4 @@ xml.definitions 'xmlns' => 'http://schemas.xmlsoap.org/wsdl/',
     end
   end
 
-  @map.each do |operation, formats|
-    xml.message :name => "#{operation}" do
-      formats[:in].each do |p|
-        xml.part wsdl_occurence(p, true, :name => p.name, :type => p.namespaced_type)
-      end
-    end
-    xml.message :name => formats[:response_tag] do
-      formats[:out].each do |p|
-        xml.part wsdl_occurence(p, true, :name => p.name, :type => p.namespaced_type)
-      end
-    end
-  end
 end

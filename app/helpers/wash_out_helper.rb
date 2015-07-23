@@ -1,7 +1,7 @@
 module WashOutHelper
 
   def wsdl_data_options(param)
-    case controller.soap_config.wsdl_style
+    case controller.soap_config.wsdl_style.to_s
     when 'rpc'
       { :"xsi:type" => param.namespaced_type }
     when 'document'
@@ -55,33 +55,57 @@ module WashOutHelper
     end
   end
 
-  def wsdl_type(xml, param, defined=[])
+  def wsdl_operation_element(xml, name, formats, defined = [])
+    (formats[:in] + formats[:out]).each do |p|
+      wsdl_type xml, p, defined
+    end
+
+    wsdl_element xml, name, formats[:in], defined
+    wsdl_element xml, formats[:response_tag], formats[:out], defined
+  end
+
+  def wsdl_element(xml, name, params, defined = [])
+    xml.tag! "xsd:element", :name => name do
+      xml.tag! "xsd:complexType" do
+        wsdl_sequence xml, params
+      end
+    end
+  end
+
+  def wsdl_sequence(xml, elems)
+    xml.tag! "xsd:sequence" do
+      elems.each do |value|
+        xml.tag! "xsd:element", wsdl_occurence(value, false, :name => value.name, :type => value.namespaced_type)
+      end
+    end
+  end
+
+  def wsdl_complex_type(xml, param, more = [])
+    attrs, elems = [], []
+    param.map.each do |value|
+      more << value if value.struct?
+      if value.attribute?
+        attrs << value
+      else
+        elems << value
+      end
+    end
+
+    wsdl_sequence xml, elems if elems.any?
+
+    attrs.each do |value|
+      xml.tag! "xsd:attribute", wsdl_occurence(value, false, :name => value.attr_name, :type => value.namespaced_type)
+    end
+  end
+
+
+  def wsdl_type(xml, param, defined = [])
     more = []
 
     if param.struct?
       if !defined.include?(param.basic_type)
         xml.tag! "xsd:complexType", :name => param.basic_type do
-          attrs, elems = [], []
-          param.map.each do |value|
-            more << value if value.struct?
-            if value.attribute?
-              attrs << value
-            else
-              elems << value
-            end
-          end
-
-          if elems.any?
-            xml.tag! "xsd:sequence" do
-              elems.each do |value|
-                xml.tag! "xsd:element", wsdl_occurence(value, false, :name => value.name, :type => value.namespaced_type)
-              end
-            end
-          end
-
-          attrs.each do |value|
-            xml.tag! "xsd:attribute", wsdl_occurence(value, false, :name => value.attr_name, :type => value.namespaced_type)
-          end
+          wsdl_complex_type xml, param, more
         end
 
         defined << param.basic_type
